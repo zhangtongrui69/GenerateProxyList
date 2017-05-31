@@ -21,6 +21,7 @@ target_timeout = 30                   # the response time should be less than ta
 									# then we consider this is a valid proxy
 
 
+# items in q is a list: ip, port, protocol, country
 q = queue.Queue()
 qout = queue.Queue()
 
@@ -272,6 +273,7 @@ def generateProxyListFromFreeproxylists():
 		tds = tr.find_elements_by_tag_name('td')
 		ip = ''
 		port = 0
+		protocol=''
 		if len(tds)==10:
 			for idx, td in enumerate(tds):
 				if idx == 0:
@@ -282,9 +284,14 @@ def generateProxyListFromFreeproxylists():
 				elif idx == 1:
 					port = int(td.text)
 				elif idx == 2:
-					if td.text == 'SOCKS5':
-						a = (ip, port)
-						q.put(a)
+					if td.text == 'HTTPS':
+						protocol = 'https'
+					elif td.text == 'HTTP':
+						protocol = 'http'
+					elif 'SOCKS' in td.text:
+						protocol= 'socks'
+					a = (ip, port, protocol, 'china')
+					q.put(a)
 				else:
 					break
 	driver.quit()
@@ -296,6 +303,7 @@ def generateProxyListFromFree_proxy_lists():
 	driver.get('http://free-proxy-list.net/')
 	next = driver.find_element_by_id('proxylisttable_next')
 
+	lastPage = False
 	while True:
 		t = driver.find_element_by_id('proxylisttable')
 		if not t:
@@ -307,6 +315,7 @@ def generateProxyListFromFree_proxy_lists():
 			tds = tr.find_elements_by_tag_name('td')
 			ip = ''
 			port = 0
+			country = ''
 			if len(tds)==8:
 				for idx, td in enumerate(tds):
 					if idx == 0:
@@ -315,15 +324,21 @@ def generateProxyListFromFree_proxy_lists():
 						ip = td.text
 					elif idx == 1:
 						port = int(td.text)
+					elif idx==3:
+						country = td.text
 					elif idx == 6:
 						if td.text == 'yes':
-							a = (ip, port)
-							q.put(a)
+							a = (ip, port, 'https', country)
+						else:
+							a = (ip, port, 'http', country)
+						q.put(a)
+		if lastPage:
+			break
 		next.click()
 		next = driver.find_element_by_id('proxylisttable_next')
 		next_class = next.get_attribute('class')
 		if 'disabled' in next_class:
-			break
+			lastPage = True
 	driver.quit()
 	return
 
@@ -408,18 +423,21 @@ def generateProxyListFromNordVpn():
 	driver.quit()
 
 def createProxyListTable():
-	cnx = pymysql.connect(user='root', password='smart247',
+	cnx = pymysql.connect(user='root', password='localhost',
 						  host='127.0.0.1',
 						  database='mypythondb')
 	cursor = cnx.cursor()
 
 	query = "create table `freeproxy` (`idx` int(10) unsigned not null auto_increment, " \
-			"ip varchar(45) not null, port int(10) unsigned not null, country varchar(45), primary key(`idx`))"
+			"ip varchar(45) not null, port int(10) unsigned not null, country varchar(45), "\
+			"protocol varchar(45), primary key(`idx`))"
 
 	print(query)
+	query1 = "ALTER TABLE `mypythondb`.`freeproxy` ADD UNIQUE INDEX `index1` (`ip` ASC, `port` ASC)"
 
 	try:
 		cursor.execute(query)
+		cursor.execute(query1)
 	except Exception as e:
 		print(e)
 	cursor.close()
@@ -431,16 +449,20 @@ if __name__ == '__main__':
 
 
 	generateProxyListFromFree_proxy_lists()
+	generateProxyListFromFreeproxylists()
+	cnx = pymysql.connect(user='root', password='localhost', host='127.0.0.1', database='mypythondb')
+	cursor = cnx.cursor()
 	while True:
 		try:
 			a = q.get(False)
-			cnx = pymysql.connect(user='root',password='smart247', host='127.0.0.1', database='mypythondb')
-			cursor = cnx.cursor()
-			insert = "insert into `freeproxy` set ip='"+a[0]+"',port="+str(a[1])
+			insert = "insert into `freeproxy` set ip='"+a[0]+"',port="+str(a[1])+", protocol='"+a[2]+"', country='"+a[3]+"'"
 			cursor.execute(insert)
 			cnx.commit()
 		except queue.Empty:
 			break
+		except pymysql.err.IntegrityError as e:
+			print(e)
+			continue
 	cursor.close()
 	cnx.close()
 	quit(0)
