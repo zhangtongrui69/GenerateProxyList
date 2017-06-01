@@ -239,34 +239,36 @@ def generateProxyListFromProxynova():
     driver = webdriver.Chrome()
     driver.get('http://www.proxynova.com/proxy-server-list/')
 
-    fobj = open('proxylist.txt', 'w')
     trs = driver.find_elements_by_tag_name('tr')
     for tr in trs:
         tds = tr.find_elements_by_tag_name('td')
         ip = ''
         port = 0
+        protocol = 'http'
+        country=''
         for idx, td in enumerate(tds):
             if idx == 0:
                 if (len(td.text) > 0):
-                    fobj.write(td.text + ':')
                     ip = td.text
                 else:
                     break
             elif idx == 1:
-                fobj.write(td.text + '\n')
                 port = int(td.text)
-                a = (ip, port)
+            elif idx==5:
+                anchor = td.find_element_by_tag_name('a')
+                country = anchor.text
+                a = (ip, port, protocol, country)
                 q.put(a)
             else:
-                break
-    fobj.close()
+                pass
     driver.quit()
     return
 
 
 def generateProxyListFromFreeproxylists():
     driver = webdriver.Chrome()
-    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
+    driver.get('http://www.freeproxylists.net')
+#    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
     while True:
         t = driver.find_element_by_class_name('DataGrid')
         trs = t.find_elements_by_tag_name('tr')
@@ -279,7 +281,7 @@ def generateProxyListFromFreeproxylists():
                 for idx, td in enumerate(tds):
                     if idx == 0:
                         lk = td.find_element_by_tag_name('a')
-                        if lk.text == 'IP地址':
+                        if 'IP' in lk.text:
                             break
                         ip = lk.text
                     elif idx == 1:
@@ -291,15 +293,18 @@ def generateProxyListFromFreeproxylists():
                             protocol = 'http'
                         elif 'SOCKS' in td.text:
                             protocol= 'socks'
-                        a = (ip, port, protocol, 'china')
+                    elif idx==4:
+                        country = td.text
+                        a = (ip, port, protocol, country)
                         q.put(a)
-                    else:
                         break
+                    else:
+                        pass
         anchors = driver.find_elements_by_tag_name('a')
         nextPage=None
         bNext = False
         for anchor in anchors:
-            if '下一页' in anchor.text:
+            if '下一页' in anchor.text or 'Next' in anchor.text:
                 nextPage = anchor
                 bNext = True
                 break
@@ -359,9 +364,10 @@ def generateProxyListFromFree_proxy_lists():
 def generateProxyListFromSocks_proxy_net():
     driver = webdriver.Chrome()
     driver.get('http://www.socks-proxy.net/')
-    next = driver.find_element_by_id('proxylisttable_next')
 
     while True:
+        next = driver.find_element_by_id('proxylisttable_next')
+        next_class = next.get_attribute('class')
         t = driver.find_element_by_id('proxylisttable')
         if not t:
             driver.quit()
@@ -372,6 +378,7 @@ def generateProxyListFromSocks_proxy_net():
             tds = tr.find_elements_by_tag_name('td')
             ip = ''
             port = 0
+            country = ''
             if len(tds)==8:
                 for idx, td in enumerate(tds):
                     if idx == 0:
@@ -380,18 +387,18 @@ def generateProxyListFromSocks_proxy_net():
                         ip = td.text
                     elif idx == 1:
                         port = int(td.text)
+                    elif idx==3:
+                        country = td.text
                     elif idx == 4:
                         if 'Socks' in td.text:
-                            a = (ip, port)
+                            a = (ip, port, td.text, country)
                             q.put(a)
                             break
                         else:
                             break
-        next.click()
-        next = driver.find_element_by_id('proxylisttable_next')
-        next_class = next.get_attribute('class')
         if 'disabled' in next_class:
             break
+        next.click()
     driver.quit()
     return
 
@@ -421,18 +428,19 @@ def generateProxyListFromNordVpn():
         tds = tr.find_elements_by_tag_name('td')
         ip = ''
         port = 0
+        protocol = ''
+        country = ''
         for itd, td in enumerate(tds):
             print(itr,itd)
             if itd==0:
-                pass
+                country=td.text
             if itd==1:
                 ip = td.text
             if itd==2:
                 port = int(td.text)
             if itd==3:
-                if td.text == 'SOCKS5':
-                    a = (ip, port)
-                    q.put(a)
+                a = (ip, port, td.text, country)
+                q.put(a)
     driver.quit()
 
 def createProxyListTable():
@@ -461,8 +469,11 @@ if __name__ == '__main__':
     createProxyListTable()
 
 
-#	generateProxyListFromFree_proxy_lists()
+#    generateProxyListFromFree_proxy_lists()
     generateProxyListFromFreeproxylists()
+#    generateProxyListFromProxynova()
+#    generateProxyListFromSocks_proxy_net()
+#    generateProxyListFromNordVpn()
     cnx = pymysql.connect(user='root', password=dbpassword, host='127.0.0.1', database='mypythondb')
     cursor = cnx.cursor()
     while True:
@@ -474,6 +485,9 @@ if __name__ == '__main__':
         except queue.Empty:
             break
         except pymysql.err.IntegrityError as e:
+            print(e)
+            continue
+        except pymysql.err.ProgrammingError as e:
             print(e)
             continue
     cursor.close()
