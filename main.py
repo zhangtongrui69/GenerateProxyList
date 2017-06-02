@@ -449,18 +449,20 @@ def createProxyListTable():
                           database='mypythondb')
     cursor = cnx.cursor()
 
-    query = "create table `freeproxy` (`idx` int(10) unsigned not null auto_increment, " \
+    querys = ["create table `freeproxy` (`idx` int(10) unsigned not null auto_increment, " \
             "ip varchar(45) not null, port int(10) unsigned not null, country varchar(45), "\
-            "protocol varchar(45), primary key(`idx`))"
+            "protocol varchar(45), primary key(`idx`))",
+            "ALTER TABLE `mypythondb`.`freeproxy` ADD UNIQUE INDEX `index1` (`ip` ASC, `port` ASC)",
+            "alter table `mypythondb`.`freeproxy` add column `active` boolean default false",
+            "alter table `mypythondb`.`freeproxy` add column `speed` int default 0",
+            "alter table `mypythondb`.`freeproxy` add column `time_added` timestamp default '0000-00-00 00:00:00'",
+            "alter table `mypythondb`.`freeproxy` add column `time_verified` timestamp default '0000-00-00 00:00:00'"]
 
-    print(query)
-    query1 = "ALTER TABLE `mypythondb`.`freeproxy` ADD UNIQUE INDEX `index1` (`ip` ASC, `port` ASC)"
-
-    try:
-        cursor.execute(query)
-        cursor.execute(query1)
-    except Exception as e:
-        print(e)
+    for query in querys:
+        try:
+            cursor.execute(query)
+        except Exception as e:
+            print(e)
     cursor.close()
     cnx.close()
 
@@ -479,7 +481,7 @@ if __name__ == '__main__':
     while True:
         try:
             a = q.get(False)
-            insert = "insert into `freeproxy` set ip='"+a[0]+"',port="+str(a[1])+", protocol='"+a[2]+"', country='"+a[3]+"'"
+            insert = "insert into `freeproxy` set ip='"+a[0]+"',port="+str(a[1])+", protocol='"+a[2]+"', country='"+a[3]+"', time_added=NOW()"
             cursor.execute(insert)
             cnx.commit()
         except queue.Empty:
