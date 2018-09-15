@@ -26,6 +26,55 @@ dbpassword='localhost'
 q = queue.Queue()
 qout = queue.Queue()
 
+def generateProxyListFromGatherProxy():
+    driver = webdriver.Chrome()
+    driver.get('http: // www.gatherproxy.com /')
+#    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
+    while True:
+        t = driver.find_element_by_class_name('DataGrid')
+        trs = t.find_elements_by_tag_name('tr')
+        for tr in trs:
+            tds = tr.find_elements_by_tag_name('td')
+            ip = ''
+            port = 0
+            protocol=''
+            if len(tds)==10:
+                for idx, td in enumerate(tds):
+                    if idx == 0:
+                        lk = td.find_element_by_tag_name('a')
+                        if 'IP' in lk.text:
+                            break
+                        ip = lk.text
+                    elif idx == 1:
+                        port = int(td.text)
+                    elif idx == 2:
+                        if td.text == 'HTTPS':
+                            protocol = 'https'
+                        elif td.text == 'HTTP':
+                            protocol = 'http'
+                        elif 'SOCKS' in td.text:
+                            protocol= 'socks'
+                    elif idx==4:
+                        country = td.text
+                        a = (ip, port, protocol, country)
+                        q.put(a)
+                        break
+                    else:
+                        pass
+        anchors = driver.find_elements_by_tag_name('a')
+        nextPage=None
+        bNext = False
+        for anchor in anchors:
+            if '下一页' in anchor.text or 'Next' in anchor.text:
+                nextPage = anchor
+                bNext = True
+                break
+        if bNext:
+            nextPage.click()
+        else:
+            break
+    driver.quit()
+    return
 
 def generateProxyListFromProxynova():
     driver = webdriver.Chrome()
@@ -110,8 +159,10 @@ def generateProxyListFromFreeproxylists():
 
 def generateProxyListFromFree_proxy_lists():
     driver = webdriver.Chrome()
+    driver.set_window_size(1500,2000)
     driver.get('http://free-proxy-list.net/')
     next = driver.find_element_by_id('proxylisttable_next')
+    nexta = next.find_element_by_tag_name('a')
 
     lastPage = False
     while True:
@@ -144,8 +195,9 @@ def generateProxyListFromFree_proxy_lists():
                         q.put(a)
         if lastPage:
             break
-        next.click()
+        nexta.click()
         next = driver.find_element_by_id('proxylisttable_next')
+        nexta = next.find_element_by_tag_name('a')
         next_class = next.get_attribute('class')
         if 'disabled' in next_class:
             lastPage = True
@@ -159,6 +211,7 @@ def generateProxyListFromSocks_proxy_net():
 
     while True:
         next = driver.find_element_by_id('proxylisttable_next')
+        nexta = next.find_element_by_tag_name('a')
         next_class = next.get_attribute('class')
         t = driver.find_element_by_id('proxylisttable')
         if not t:
@@ -190,7 +243,7 @@ def generateProxyListFromSocks_proxy_net():
                             break
         if 'disabled' in next_class:
             break
-        next.click()
+        nexta.click()
     driver.quit()
     return
 
@@ -238,6 +291,82 @@ def generateProxyListFromNordVpn():
                 q.put(a)
     driver.quit()
 
+def generateProxyListFromHideMyAss():
+    driver = webdriver.Chrome()
+    driver.get('http://proxylist.hidemyass.com/')
+    while True:
+        time.sleep(1)
+        next = driver.find_element_by_class_name('next')
+        nextclass = next.get_attribute('class')
+        bNext = True
+        if 'unavailable' in nextclass:
+            bNext = False
+        tbody = driver.find_element_by_tag_name('tbody')
+        trs = tbody.find_elements_by_tag_name('tr')
+        for tr in trs:
+            tds = tr.find_elements_by_tag_name('td')
+            ip = ''
+            port = 0
+            country = ''
+            type = 'http'
+            for idx, td in enumerate(tds):
+                if idx==1:
+                    sp = td.find_element_by_tag_name('span')
+                    ip+= sp.text
+                elif idx == 2:
+                    port = td.text
+                elif idx == 3:
+                    country = td.text
+                elif idx==6:
+                    type = td.text
+                    a = (ip, port, td.text, country)
+                    q.put(a)
+                    break
+        if bNext:
+            next.click()
+        else:
+            break
+    driver.quit()
+
+
+def generateProxyListFromHideIpMe():
+    driver = webdriver.Chrome()
+    driver.get('https://hideip.me/en/proxy/socks5list')
+    while True:
+        time.sleep(1)
+        next = driver.find_element_by_id('next_plistproxy')
+        bNext = True
+        if 'unavailable' in nextclass:
+            bNext = False
+        tbody = driver.find_element_by_tag_name('tbody')
+        trs = tbody.find_elements_by_tag_name('tr')
+        for tr in trs:
+            tds = tr.find_elements_by_tag_name('td')
+            ip = ''
+            port = 0
+            country = ''
+            type = 'http'
+            for idx, td in enumerate(tds):
+                if idx==1:
+                    sp = td.find_element_by_tag_name('span')
+                    ip+= sp.text
+                elif idx == 2:
+                    port = td.text
+                elif idx == 3:
+                    country = td.text
+                elif idx==6:
+                    type = td.text
+                    a = (ip, port, td.text, country)
+                    q.put(a)
+                    break
+        if bNext:
+            next.click()
+        else:
+            break
+    driver.quit()
+
+
+
 def createProxyListTable():
     cnx = pymysql.connect(user='root', password=dbpassword,
                           host='127.0.0.1',
@@ -261,6 +390,7 @@ def createProxyListTable():
     cursor.close()
     cnx.close()
 
+
 class threadGenerateProxyList(threading.Thread):
     def __init__(self, index):
         threading.Thread.__init__(self)
@@ -268,13 +398,32 @@ class threadGenerateProxyList(threading.Thread):
         return
 
     def run(self):
-#        generateProxyListFromFree_proxy_lists()
-#        generateProxyListFromFreeproxylists()
-        generateProxyListFromProxynova()
-        generateProxyListFromSocks_proxy_net()
-        generateProxyListFromNordVpn()
+#        try:
+            # comment out because this website is temperory unavailable
+            # generateProxyListFromHideMyAss()
+#        except:
+#            pass
+        try:
+            generateProxyListFromFree_proxy_lists()
+        except:
+            pass
+        try:
+            generateProxyListFromFreeproxylists()
+        except:
+            pass
+        try:
+            generateProxyListFromProxynova()
+        except:
+            pass
+        try:
+            generateProxyListFromSocks_proxy_net()
+        except:
+            pass
+        try:
+            generateProxyListFromNordVpn()
+        except:
+            pass
         return
-
 
 if __name__ == '__main__':
     createProxyListTable()
