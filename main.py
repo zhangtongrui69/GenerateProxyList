@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 import urllib
 import time
 import threading
@@ -21,7 +22,7 @@ target_timeout = 30                   # the response time should be less than ta
                                     # then we consider this is a valid proxy
 
 
-dbpassword='localhost'
+dbpassword='tme'
 # items in q is a list: ip, port, protocol, country
 q = queue.Queue()
 qout = queue.Queue()
@@ -159,7 +160,6 @@ def generateProxyListFromFreeproxylists():
 
 def generateProxyListFromFree_proxy_lists():
     driver = webdriver.Chrome()
-    driver.set_window_size(1500,2000)
     driver.get('http://free-proxy-list.net/')
     next = driver.find_element_by_id('proxylisttable_next')
     nexta = next.find_element_by_tag_name('a')
@@ -177,6 +177,7 @@ def generateProxyListFromFree_proxy_lists():
             ip = ''
             port = 0
             country = ''
+            a = tuple()
             if len(tds)==8:
                 for idx, td in enumerate(tds):
                     if idx == 0:
@@ -195,6 +196,10 @@ def generateProxyListFromFree_proxy_lists():
                         q.put(a)
         if lastPage:
             break
+#        actions = ActionChains(driver)
+#        actions.move_to_element(nexta).perform()
+        driver.execute_script("arguments[0].scrollIntoView();", nexta)
+        driver.execute_script("scrollBy(0,-100)")
         nexta.click()
         next = driver.find_element_by_id('proxylisttable_next')
         nexta = next.find_element_by_tag_name('a')
@@ -398,31 +403,32 @@ class threadGenerateProxyList(threading.Thread):
         return
 
     def run(self):
+# comment out because this site is not working
 #        try:
-            # comment out because this website is temperory unavailable
-            # generateProxyListFromHideMyAss()
+#             generateProxyListFromHideMyAss()
 #        except:
 #            pass
         try:
             generateProxyListFromFree_proxy_lists()
-        except:
+        except Exception as e:
+            print(e)
             pass
-        try:
-            generateProxyListFromFreeproxylists()
-        except:
-            pass
-        try:
-            generateProxyListFromProxynova()
-        except:
-            pass
-        try:
-            generateProxyListFromSocks_proxy_net()
-        except:
-            pass
-        try:
-            generateProxyListFromNordVpn()
-        except:
-            pass
+#        try:
+#            generateProxyListFromFreeproxylists()
+#        except:
+#            pass
+#        try:
+#            generateProxyListFromProxynova()
+#        except:
+#            pass
+#        try:
+#            generateProxyListFromSocks_proxy_net()
+#        except:
+#            pass
+#        try:
+#            generateProxyListFromNordVpn()
+#        except:
+#            pass
         return
 
 if __name__ == '__main__':
@@ -430,6 +436,7 @@ if __name__ == '__main__':
 
     t = threadGenerateProxyList(1)
     t.start()
+    t.join()
 
     cnx = pymysql.connect(user='root', password=dbpassword, host='127.0.0.1', database='mypythondb')
     cursor = cnx.cursor()
