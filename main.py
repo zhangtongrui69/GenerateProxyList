@@ -186,7 +186,7 @@ def generateProxyListFromFree_proxy_lists():
                         ip = td.text
                     elif idx == 1:
                         port = int(td.text)
-                    elif idx==3:
+                    elif idx == 2:
                         country = td.text
                     elif idx == 6:
                         if td.text == 'yes':
@@ -256,11 +256,11 @@ def generateProxyListFromSocks_proxy_net():
 def generateProxyListFromNordVpn():
     driver = webdriver.Chrome()
     driver.get('https://nordvpn.com/free-proxy-list/')
-    time.sleep(1)
+    time.sleep(3)
     try:
-        dlg = driver.find_element_by_class_name('modal-dialog')
+        dlg = driver.find_element_by_class_name('modal-content')
         if dlg:
-            close = dlg.find_element_by_class_name('close')
+            close = dlg.find_element_by_class_name('Popup__close')
             if close:
                 close.click()
                 time.sleep(1)
@@ -408,11 +408,11 @@ class threadGenerateProxyList(threading.Thread):
 #             generateProxyListFromHideMyAss()
 #        except:
 #            pass
-        try:
-            generateProxyListFromFree_proxy_lists()
-        except Exception as e:
-            print(e)
-            pass
+#        try:
+#            generateProxyListFromFree_proxy_lists()
+#        except Exception as e:
+#            print(e)
+#            pass
 #        try:
 #            generateProxyListFromFreeproxylists()
 #        except:
@@ -425,10 +425,10 @@ class threadGenerateProxyList(threading.Thread):
 #            generateProxyListFromSocks_proxy_net()
 #        except:
 #            pass
-#        try:
-#            generateProxyListFromNordVpn()
-#        except:
-#            pass
+        try:
+            generateProxyListFromNordVpn()
+        except:
+            pass
         return
 
 if __name__ == '__main__':
@@ -452,6 +452,9 @@ if __name__ == '__main__':
             print(e)
             continue
         except pymysql.err.ProgrammingError as e:
+            print(e)
+            continue
+        except Exception as e:
             print(e)
             continue
     cursor.close()
