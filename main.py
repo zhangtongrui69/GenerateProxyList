@@ -29,7 +29,7 @@ qout = queue.Queue()
 
 def generateProxyListFromGatherProxy():
     driver = webdriver.Chrome()
-    driver.get('http: // www.gatherproxy.com /')
+    driver.get('http://www.gatherproxy.com/')
 #    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
     while True:
         t = driver.find_element_by_class_name('DataGrid')
@@ -256,7 +256,7 @@ def generateProxyListFromSocks_proxy_net():
 def generateProxyListFromNordVpn():
     driver = webdriver.Chrome()
     driver.get('https://nordvpn.com/free-proxy-list/')
-    time.sleep(3)
+    time.sleep(10)
     try:
         dlg = driver.find_element_by_class_name('modal-content')
         if dlg:
@@ -408,27 +408,41 @@ class threadGenerateProxyList(threading.Thread):
 #             generateProxyListFromHideMyAss()
 #        except:
 #            pass
-#        try:
-#            generateProxyListFromFree_proxy_lists()
-#        except Exception as e:
-#            print(e)
-#            pass
-#        try:
-#            generateProxyListFromFreeproxylists()
-#        except:
-#            pass
-#        try:
-#            generateProxyListFromProxynova()
-#        except:
-#            pass
-#        try:
-#            generateProxyListFromSocks_proxy_net()
-#        except:
-#            pass
+
         try:
-            generateProxyListFromNordVpn()
+            generateProxyListFromGatherProxy()
+        except Exception as e:
+            print(e)
+            pass
+        try:
+            generateProxyListFromFree_proxy_lists()
+        except Exception as e:
+            print(e)
+            pass
+        try:
+            generateProxyListFromFreeproxylists()
         except:
             pass
+        try:
+            generateProxyListFromProxynova()
+        except:
+            pass
+        try:
+            generateProxyListFromSocks_proxy_net()
+        except:
+            pass
+
+
+        try:
+            generateProxyListFromHideIpMe()
+        except:
+            pass
+
+    # this web site no longer supply proxy list
+#        try:
+#            generateProxyListFromNordVpn()
+#        except:
+#            pass
         return
 
 if __name__ == '__main__':
