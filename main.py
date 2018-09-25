@@ -29,50 +29,44 @@ qout = queue.Queue()
 
 def generateProxyListFromGatherProxy():
     driver = webdriver.Chrome()
-    driver.get('http://www.gatherproxy.com/')
+    driver.get('http://www.gatherproxy.com/proxylist/country/?c=China')
 #    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
+    showFullList = driver.find_element_by_css_selector(".button[value='Show Full List']")
+    showFullList.click()
+    time.sleep(2)
     while True:
-        t = driver.find_element_by_class_name('DataGrid')
-        trs = t.find_elements_by_tag_name('tr')
+        plist = driver.find_element_by_class_name('proxy-list')
+        trs = plist.find_elements_by_tag_name('tr')
         for tr in trs:
             tds = tr.find_elements_by_tag_name('td')
             ip = ''
             port = 0
             protocol=''
-            if len(tds)==10:
+            if len(tds)==8:
                 for idx, td in enumerate(tds):
-                    if idx == 0:
-                        lk = td.find_element_by_tag_name('a')
-                        if 'IP' in lk.text:
-                            break
-                        ip = lk.text
-                    elif idx == 1:
-                        port = int(td.text)
+                    if idx == 1:
+                        ip = td.text
                     elif idx == 2:
-                        if td.text == 'HTTPS':
-                            protocol = 'https'
-                        elif td.text == 'HTTP':
-                            protocol = 'http'
-                        elif 'SOCKS' in td.text:
-                            protocol= 'socks'
+                        port = int(td.text)
                     elif idx==4:
                         country = td.text
-                        a = (ip, port, protocol, country)
+                        a = (ip, port, 'http', country)
                         q.put(a)
                         break
                     else:
                         pass
-        anchors = driver.find_elements_by_tag_name('a')
-        nextPage=None
-        bNext = False
-        for anchor in anchors:
-            if '下一页' in anchor.text or 'Next' in anchor.text:
-                nextPage = anchor
-                bNext = True
+        pagenavi = driver.find_element_by_class_name('pagenavi')
+        current = pagenavi.find_element_by_class_name('current')
+        nCurrent = int(current.text)
+        pages = pagenavi.find_elements_by_class_name('inactive')
+        bEnd = True
+        for page in pages:
+            if page.text == str(nCurrent+1):
+                driver.execute_script("arguments[0].scrollIntoView();", page)
+                page.click()
+                bEnd = False
                 break
-        if bNext:
-            nextPage.click()
-        else:
+        if bEnd:
             break
     driver.quit()
     return
@@ -109,8 +103,8 @@ def generateProxyListFromProxynova():
 
 def generateProxyListFromFreeproxylists():
     driver = webdriver.Chrome()
-    driver.get('http://www.freeproxylists.net')
-#    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
+#    driver.get('http://www.freeproxylists.net')
+    driver.get('http://www.freeproxylists.net/zh/?c=CN&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=0')
     while True:
         t = driver.find_element_by_class_name('DataGrid')
         trs = t.find_elements_by_tag_name('tr')
@@ -252,7 +246,7 @@ def generateProxyListFromSocks_proxy_net():
     driver.quit()
     return
 
-
+'''
 def generateProxyListFromNordVpn():
     driver = webdriver.Chrome()
     driver.get('https://nordvpn.com/free-proxy-list/')
@@ -332,7 +326,7 @@ def generateProxyListFromHideMyAss():
         else:
             break
     driver.quit()
-
+'''
 
 def generateProxyListFromHideIpMe():
     driver = webdriver.Chrome()
@@ -403,17 +397,14 @@ class threadGenerateProxyList(threading.Thread):
         return
 
     def run(self):
-# comment out because this site is not working
-#        try:
-#             generateProxyListFromHideMyAss()
-#        except:
-#            pass
 
         try:
             generateProxyListFromGatherProxy()
         except Exception as e:
             print(e)
             pass
+        return
+'''
         try:
             generateProxyListFromFree_proxy_lists()
         except Exception as e:
@@ -422,28 +413,24 @@ class threadGenerateProxyList(threading.Thread):
         try:
             generateProxyListFromFreeproxylists()
         except:
+            print(e)
             pass
         try:
             generateProxyListFromProxynova()
         except:
+            print(e)
             pass
         try:
             generateProxyListFromSocks_proxy_net()
         except:
+            print(e)
             pass
-
-
         try:
             generateProxyListFromHideIpMe()
         except:
+            print(e)
             pass
-
-    # this web site no longer supply proxy list
-#        try:
-#            generateProxyListFromNordVpn()
-#        except:
-#            pass
-        return
+'''
 
 if __name__ == '__main__':
     createProxyListTable()
@@ -456,7 +443,7 @@ if __name__ == '__main__':
     cursor = cnx.cursor()
     while True:
         try:
-            a = q.get(True, 300)
+            a = q.get(True, 10)
             insert = "insert into `freeproxy` set ip='"+a[0]+"',port="+str(a[1])+", protocol='"+a[2]+"', country='"+a[3]+"', time_added=NOW()"
             cursor.execute(insert)
             cnx.commit()
